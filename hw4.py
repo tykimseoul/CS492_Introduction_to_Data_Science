@@ -7,17 +7,71 @@ from typing import List
 import requests
 import tqdm as tqdm
 
-from linear_algebra import Vector, dot
-
 url = 'https://raw.githubusercontent.com/joelgrus/data-science-from-scratch/master/scratch/linear_algebra.py'
 r = requests.get(url)
 
 with open('linear_algebra.py', 'w') as f:
     f.write(r.text)
 
+url = 'https://raw.githubusercontent.com/joelgrus/data-science-from-scratch/master/scratch/probability.py'
+r = requests.get(url)
+
+with open('probability.py', 'w') as f:
+    f.write(r.text)
+
+from probability import inverse_normal_cdf
+
+from linear_algebra import Vector, dot, add, scalar_multiply
+
+
+def gradient_step(v: Vector, gradient: Vector, step_size: float) -> Vector:
+    """Moves `step_size` in the `gradient` direction from `v`"""
+    assert len(v) == len(gradient)
+    step = scalar_multiply(step_size, gradient)
+    return add(v, step)
+
+
+def predict(x: Vector, beta: Vector) -> float:
+    """assumes that the first element of x is 1"""
+    return dot(x, beta)
+
+
+def error(x: Vector, y: float, beta: Vector) -> float:
+    return predict(x, beta) - y
+
+
+def squared_error(x: Vector, y: float, beta: Vector) -> float:
+    return error(x, y, beta) ** 2
+
+
+def sqerror_gradient(x: Vector, y: float, beta: Vector) -> Vector:
+    err = error(x, y, beta)
+    return [2 * err * x_i for x_i in x]
+
 
 def sigmoid(t: float) -> float:
     return 1 / (1 + math.exp(-t))
+
+
+def fizz_buzz_encode(x: int) -> Vector:
+    result = [0, 0, 0, 0, 0]
+    result[x % 5] = 1
+    return result
+
+
+def binary_encode(x: int) -> Vector:
+    binary: List[float] = []
+
+    for i in range(10):
+        binary.append(x % 2)
+        x = x // 2
+
+    return binary
+
+
+def argmax(xs: list) -> int:
+    """Returns the index of the largest value"""
+    return max(range(len(xs)), key=lambda i: xs[i])
 
 
 Tensor = list
@@ -390,32 +444,6 @@ class Momentum(Optimizer):
                 update)
 
 
-def fizz_buzz_encode(x: int) -> Vector:
-    if x % 15 == 0:
-        return [0, 0, 0, 1]
-    elif x % 5 == 0:
-        return [0, 0, 1, 0]
-    elif x % 3 == 0:
-        return [0, 1, 0, 0]
-    else:
-        return [1, 0, 0, 0]
-
-
-def binary_encode(x: int) -> Vector:
-    binary: List[float] = []
-
-    for i in range(10):
-        binary.append(x % 2)
-        x = x // 2
-
-    return binary
-
-
-def argmax(xs: list) -> int:
-    """Returns the index of the largest value"""
-    return max(range(len(xs)), key=lambda i: xs[i])
-
-
 def fizzbuzz_accuracy(low: int, hi: int, net: Layer) -> float:
     num_correct = 0
     for n in range(low, hi):
@@ -428,8 +456,10 @@ def fizzbuzz_accuracy(low: int, hi: int, net: Layer) -> float:
     return num_correct / (hi - low)
 
 
-xs = [binary_encode(n) for n in range(101, 1024)]
-ys = [fizz_buzz_encode(n) for n in range(101, 1024)]
+low = 101
+high = 512
+xs = [binary_encode(n) for n in range(low, high)]
+ys = [fizz_buzz_encode(n) for n in range(low, high)]
 
 NUM_HIDDEN = 25
 
@@ -438,7 +468,7 @@ random.seed(0)
 net = Sequential([
     Linear(input_dim=10, output_dim=NUM_HIDDEN, init='uniform'),
     Tanh(),
-    Linear(input_dim=NUM_HIDDEN, output_dim=4, init='uniform')
+    Linear(input_dim=NUM_HIDDEN, output_dim=5, init='uniform')
     # No final sigmoid layer now
 ])
 
@@ -457,8 +487,8 @@ with tqdm.trange(100) as t:
 
             optimizer.step(net)
 
-        accuracy = fizzbuzz_accuracy(101, 1024, net)
+        accuracy = fizzbuzz_accuracy(low, high, net)
         t.set_description(f"fb loss: {epoch_loss:.3f} acc: {accuracy:.2f}")
 
 # Again check results on the test set
-print("test results", fizzbuzz_accuracy(1, 101, net))
+print("test results", fizzbuzz_accuracy(1, low, net))
